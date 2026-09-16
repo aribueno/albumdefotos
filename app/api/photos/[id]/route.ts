@@ -19,7 +19,11 @@ export async function DELETE(
     return NextResponse.json({ error: 'Foto não encontrada' }, { status: 404 });
   }
 
-  await del(photo.blob_url as string);
+  try {
+    await del(photo.blob_url as string);
+  } catch (error) {
+    console.error(`Falha ao excluir blob da foto ${photoId}:`, error);
+  }
   await sql`DELETE FROM photos WHERE id = ${photoId}`;
 
   return NextResponse.json({ ok: true });

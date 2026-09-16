@@ -36,16 +36,21 @@ export async function POST(
       continue;
     }
 
-    const blob = await put(`albums/${albumId}/${Date.now()}-${file.name}`, file, {
-      access: 'public',
-    });
+    try {
+      const blob = await put(`albums/${albumId}/${Date.now()}-${file.name}`, file, {
+        access: 'public',
+      });
 
-    const [photo] = await sql`
-      INSERT INTO photos (album_id, blob_url, filename)
-      VALUES (${albumId}, ${blob.url}, ${file.name})
-      RETURNING id, album_id, blob_url, filename, created_at
-    `;
-    uploaded.push(photo);
+      const [photo] = await sql`
+        INSERT INTO photos (album_id, blob_url, filename)
+        VALUES (${albumId}, ${blob.url}, ${file.name})
+        RETURNING id, album_id, blob_url, filename, created_at
+      `;
+      uploaded.push(photo);
+    } catch (error) {
+      console.error(`Falha ao enviar ${file.name}:`, error);
+      errors.push(`${file.name}: falha ao enviar`);
+    }
   }
 
   return NextResponse.json({ uploaded, errors }, { status: uploaded.length > 0 ? 201 : 400 });
