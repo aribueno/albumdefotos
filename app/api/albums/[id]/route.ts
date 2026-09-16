@@ -41,7 +41,7 @@ export async function DELETE(
 
   const photos = await sql`SELECT blob_url FROM photos WHERE album_id = ${albumId}`;
 
-  await Promise.all(photos.map((photo) => del(photo.blob_url as string)));
+  await Promise.allSettled(photos.map((photo) => del(photo.blob_url as string)));
 
   await sql`DELETE FROM albums WHERE id = ${albumId}`;
 
