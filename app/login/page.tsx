@@ -14,21 +14,25 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
-    const response = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
-    });
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
 
-    setLoading(false);
+      if (!response.ok) {
+        setError('Senha incorreta. Tente novamente.');
+        return;
+      }
 
-    if (!response.ok) {
-      setError('Senha incorreta. Tente novamente.');
-      return;
+      router.push('/');
+      router.refresh();
+    } catch {
+      setError('Erro de conexão. Tente novamente.');
+    } finally {
+      setLoading(false);
     }
-
-    router.push('/');
-    router.refresh();
   }
 
   return (
