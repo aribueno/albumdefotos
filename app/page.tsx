@@ -19,10 +19,15 @@ export default function AlbumsPage() {
 
   async function loadAlbums() {
     setLoading(true);
-    const response = await fetch('/api/albums');
-    const data = await response.json();
-    setAlbums(data.albums ?? []);
-    setLoading(false);
+    try {
+      const response = await fetch('/api/albums');
+      const data = await response.json();
+      setAlbums(data.albums ?? []);
+    } catch {
+      setError('Erro de conexão. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -33,20 +38,24 @@ export default function AlbumsPage() {
     event.preventDefault();
     if (!newName.trim()) return;
 
-    const response = await fetch('/api/albums', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newName.trim() }),
-    });
+    try {
+      const response = await fetch('/api/albums', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName.trim() }),
+      });
 
-    if (!response.ok) {
-      setError('Não foi possível criar o álbum. Tente novamente.');
-      return;
+      if (!response.ok) {
+        setError('Não foi possível criar o álbum. Tente novamente.');
+        return;
+      }
+
+      setNewName('');
+      setError(null);
+      loadAlbums();
+    } catch {
+      setError('Erro de conexão. Tente novamente.');
     }
-
-    setNewName('');
-    setError(null);
-    loadAlbums();
   }
 
   async function handleDelete(albumId: number) {
@@ -54,14 +63,19 @@ export default function AlbumsPage() {
       return;
     }
 
-    const response = await fetch(`/api/albums/${albumId}`, { method: 'DELETE' });
+    try {
+      const response = await fetch(`/api/albums/${albumId}`, { method: 'DELETE' });
 
-    if (!response.ok) {
-      setError('Não foi possível excluir o álbum. Tente novamente.');
-      return;
+      if (!response.ok) {
+        setError('Não foi possível excluir o álbum. Tente novamente.');
+        return;
+      }
+
+      setError(null);
+      loadAlbums();
+    } catch {
+      setError('Erro de conexão. Tente novamente.');
     }
-
-    loadAlbums();
   }
 
   return (
