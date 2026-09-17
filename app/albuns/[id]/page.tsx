@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
+import Lightbox from '@/components/Lightbox';
 
 type Photo = {
   id: number;
@@ -27,6 +28,7 @@ export default function AlbumDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function loadAlbum() {
@@ -91,6 +93,7 @@ export default function AlbumDetailPage() {
       }
 
       setError(null);
+      setLightboxIndex(null);
       loadAlbum();
     } catch {
       setError('Erro de conexão. Tente novamente.');
@@ -134,6 +137,7 @@ export default function AlbumDetailPage() {
             <div key={photo.id} style={{ position: 'relative' }}>
               <div
                 data-photo-id={photo.id}
+                onClick={() => setLightboxIndex(photos.indexOf(photo))}
                 style={{ position: 'relative', width: '100%', height: 140, cursor: 'pointer', background: '#f0f0f0' }}
               >
                 <Image src={photo.blob_url} alt={photo.filename} fill style={{ objectFit: 'cover' }} />
@@ -147,6 +151,16 @@ export default function AlbumDetailPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {lightboxIndex !== null && (
+        <Lightbox
+          photos={photos}
+          index={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+          onIndexChange={setLightboxIndex}
+          onDelete={handleDeletePhoto}
+        />
       )}
     </main>
   );
