@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 import { sql } from '@/lib/db';
+import { extractImagesFromMsg, isMsgFile } from '@/lib/msg';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_SIZE_BYTES = 10 * 1024 * 1024;
@@ -17,14 +18,32 @@ export async function POST(
   }
 
   const formData = await request.formData();
-  const files = formData.getAll('files').filter((f): f is File => f instanceof File);
+  const received = formData.getAll('files').filter((f): f is File => f instanceof File);
 
-  if (files.length === 0) {
+  if (received.length === 0) {
     return NextResponse.json({ error: 'Nenhum arquivo enviado' }, { status: 400 });
   }
 
   const uploaded = [];
   const errors: string[] = [];
+  const files: File[] = [];
+
+  for (const file of received) {
+    if (!isMsgFile(file)) {
+      files.push(file);
+      continue;
+    }
+    try {
+      const images = await extractImagesFromMsg(file);
+      if (images.length === 0) {
+        errors.push(`${file.name}: nenhuma imagem encontrada`);
+      }
+      files.push(...images);
+    } catch (error) {
+      console.error(`Falha ao ler ${file.name}:`, error);
+      errors.push(`${file.name}: não foi possível ler o arquivo .msg`);
+    }
+  }
 
   for (const file of files) {
     if (!ALLOWED_TYPES.includes(file.type)) {

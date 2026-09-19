@@ -119,7 +119,7 @@ export default function AlbumDetailPage() {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
+          accept="image/jpeg,image/png,image/webp,image/gif,.msg"
           multiple
           onChange={handleUpload}
           disabled={uploading}
