@@ -85,6 +85,7 @@ export default function AlbumsPage() {
   }
 
   const firstLoad = loading && albums.length === 0;
+  const listUnavailable = loadFailed && albums.length === 0;
 
   return (
     <>
@@ -94,7 +95,9 @@ export default function AlbumsPage() {
           <div>
             <h1 className="page-title">Meus álbuns</h1>
             <p className="page-sub">
-              {firstLoad ? ' ' : `${albums.length} ${albums.length === 1 ? 'álbum' : 'álbuns'}`}
+              {firstLoad || listUnavailable
+                ? ' '
+                : `${albums.length} ${albums.length === 1 ? 'álbum' : 'álbuns'}`}
             </p>
           </div>
           <form className="new-album" onSubmit={handleCreate}>
@@ -124,7 +127,7 @@ export default function AlbumsPage() {
               <div key={n} className="skeleton skeleton--card" />
             ))}
           </div>
-        ) : loadFailed && albums.length === 0 ? (
+        ) : listUnavailable ? (
           <div className="empty">
             <p className="empty__title">Não foi possível carregar os álbuns</p>
             <p>Verifique sua conexão e tente de novo.</p>
