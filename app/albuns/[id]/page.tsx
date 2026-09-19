@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Lightbox from '@/components/Lightbox';
+import { shrinkImageIfLarge } from '@/lib/shrink-image';
 
 type Photo = {
   id: number;
@@ -51,34 +52,42 @@ export default function AlbumDetailPage() {
   }, [albumId]);
 
   async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
+    const selected = Array.from(event.target.files ?? []);
+    if (selected.length === 0) return;
 
     setUploading(true);
     setError(null);
 
-    const formData = new FormData();
-    Array.from(files).forEach((file) => formData.append('files', file));
+    const errors: string[] = [];
+    for (const original of selected) {
+      try {
+        const file = await shrinkImageIfLarge(original);
+        const formData = new FormData();
+        formData.append('files', file);
 
-    try {
-      const response = await fetch(`/api/albums/${albumId}/photos`, {
-        method: 'POST',
-        body: formData,
-      });
+        const response = await fetch(`/api/albums/${albumId}/photos`, {
+          method: 'POST',
+          body: formData,
+        });
 
-      const data = await response.json();
+        if (response.status === 413) {
+          errors.push(`${original.name}: arquivo grande demais para enviar`);
+          continue;
+        }
 
-      if (data.errors && data.errors.length > 0) {
-        setError(data.errors.join(' | '));
+        const data = await response.json();
+        if (data.errors && data.errors.length > 0) {
+          errors.push(...data.errors);
+        }
+      } catch {
+        errors.push(`${original.name}: falha ao enviar`);
       }
-
-      loadAlbum();
-    } catch {
-      setError('Erro de conexão. Tente novamente.');
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
+
+    if (errors.length > 0) setError(errors.join(' | '));
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    loadAlbum();
   }
 
   async function handleDeletePhoto(photoId: number) {
