@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { BrandMark } from '@/components/Header';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,22 +37,35 @@ export default function LoginPage() {
   }
 
   return (
-    <main style={{ maxWidth: 360, margin: '80px auto', padding: '0 16px' }}>
-      <h1>Álbum de Fotos</h1>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="password"
-          placeholder="Senha"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{ width: '100%', padding: 8, marginBottom: 8 }}
-          autoFocus
-        />
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-        <button type="submit" disabled={loading} style={{ width: '100%', padding: 8 }}>
-          {loading ? 'Entrando...' : 'Entrar'}
-        </button>
-      </form>
+    <main className="auth">
+      <div className="auth__card">
+        <BrandMark size={44} />
+        <h1 className="auth__title">Álbum de Fotos</h1>
+        <p className="auth__sub">Digite a senha para entrar.</p>
+        <form className="auth__form" onSubmit={handleSubmit}>
+          <label className="visually-hidden" htmlFor="password">
+            Senha
+          </label>
+          <input
+            id="password"
+            className="input"
+            type="password"
+            placeholder="Senha"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoFocus
+          />
+          {error && (
+            <p className="alert" role="alert">
+              {error}
+            </p>
+          )}
+          <button className="btn btn--primary btn--block" type="submit" disabled={loading}>
+            {loading ? 'Entrando...' : 'Entrar'}
+          </button>
+        </form>
+      </div>
     </main>
   );
 }

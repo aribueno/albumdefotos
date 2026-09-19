@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
 
 type Photo = {
@@ -19,6 +19,7 @@ type LightboxProps = {
 
 export default function Lightbox({ photos, index, onClose, onIndexChange, onDelete }: LightboxProps) {
   const photo = photos[index];
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   const goPrev = useCallback(() => {
     onIndexChange((index - 1 + photos.length) % photos.length);
@@ -38,64 +39,75 @@ export default function Lightbox({ photos, index, onClose, onIndexChange, onDele
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose, goPrev, goNext]);
 
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+  }, []);
+
   if (!photo) return null;
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.9)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-      }}
+      className="lightbox"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Foto ${index + 1} de ${photos.length}`}
       onClick={onClose}
     >
       <button
+        ref={closeButtonRef}
+        className="lightbox__btn lightbox__btn--close"
+        type="button"
+        aria-label="Fechar"
         onClick={(e) => {
           e.stopPropagation();
           onClose();
         }}
-        style={{ position: 'absolute', top: 16, right: 16, fontSize: 24, color: '#fff', background: 'none', border: 'none' }}
       >
-        ✕
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
       </button>
 
       <button
+        className="lightbox__btn lightbox__btn--prev"
+        type="button"
+        aria-label="Foto anterior"
         onClick={(e) => {
           e.stopPropagation();
           goPrev();
         }}
-        style={{ position: 'absolute', left: 16, fontSize: 32, color: '#fff', background: 'none', border: 'none' }}
       >
-        ‹
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
 
-      <div style={{ position: 'relative', width: '80vw', height: '80vh' }} onClick={(e) => e.stopPropagation()}>
-        <Image src={photo.blob_url} alt={photo.filename} fill style={{ objectFit: 'contain' }} />
+      <div className="lightbox__stage" onClick={(e) => e.stopPropagation()}>
+        <Image src={photo.blob_url} alt={photo.filename} fill sizes="92vw" />
       </div>
 
       <button
+        className="lightbox__btn lightbox__btn--next"
+        type="button"
+        aria-label="Próxima foto"
         onClick={(e) => {
           e.stopPropagation();
           goNext();
         }}
-        style={{ position: 'absolute', right: 16, fontSize: 32, color: '#fff', background: 'none', border: 'none' }}
       >
-        ›
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
 
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete(photo.id);
-        }}
-        style={{ position: 'absolute', bottom: 16, color: '#fff', background: 'none', border: '1px solid #fff', padding: '8px 16px' }}
-      >
-        Excluir foto
-      </button>
+      <div className="lightbox__bar" onClick={(e) => e.stopPropagation()}>
+        <span className="lightbox__name">
+          {photo.filename} · {index + 1} / {photos.length}
+        </span>
+        <button className="lightbox__delete" type="button" onClick={() => onDelete(photo.id)}>
+          Excluir foto
+        </button>
+      </div>
     </div>
   );
 }

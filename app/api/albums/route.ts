@@ -12,7 +12,11 @@ export async function GET() {
         WHERE photos.album_id = albums.id
         ORDER BY photos.created_at ASC
         LIMIT 1
-      ) AS cover_url
+      ) AS cover_url,
+      (
+        SELECT COUNT(*)::int FROM photos
+        WHERE photos.album_id = albums.id
+      ) AS photo_count
     FROM albums
     ORDER BY albums.created_at DESC
   `;
