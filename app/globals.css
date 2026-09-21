@@ -692,6 +692,11 @@ input {
   margin-top: 4px;
 }
 
+.dialog__hint {
+  color: var(--slate);
+  font-size: 0.9375rem;
+}
+
 .form {
   display: grid;
   gap: 14px;

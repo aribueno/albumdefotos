@@ -13,14 +13,26 @@ export function BrandMark({ size = 24 }: { size?: number }) {
   );
 }
 
-export default function Header({ showLogout = true }: { showLogout?: boolean }) {
+type HeaderProps = { showLogout?: boolean; homeHref?: string | null };
+
+export default function Header({ showLogout = true, homeHref = '/' }: HeaderProps) {
+  const brand = (
+    <>
+      <BrandMark />
+      Álbum de Fotos
+    </>
+  );
+
   return (
     <header className="site-header">
       <div className="site-header__inner">
-        <Link href="/" className="brand">
-          <BrandMark />
-          Álbum de Fotos
-        </Link>
+        {homeHref ? (
+          <Link href={homeHref} className="brand">
+            {brand}
+          </Link>
+        ) : (
+          <span className="brand">{brand}</span>
+        )}
         {showLogout && <LogoutButton />}
       </div>
     </header>

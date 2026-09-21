@@ -7,8 +7,10 @@ import Link from 'next/link';
 import EditAlbumDialog from '@/components/EditAlbumDialog';
 import Header from '@/components/Header';
 import Lightbox from '@/components/Lightbox';
+import ShareDialog from '@/components/ShareDialog';
 import { downloadPhoto, downloadZip } from '@/lib/download';
 import { readTakenAt } from '@/lib/exif';
+import { formatEventDate } from '@/lib/format';
 import { shrinkImageIfLarge } from '@/lib/shrink-image';
 
 type Photo = {
@@ -30,15 +32,6 @@ type Album = {
   cover_photo_id: number | null;
   share_token: string | null;
 };
-
-function formatEventDate(value: string): string {
-  return new Date(`${value}T00:00:00Z`).toLocaleDateString('pt-BR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
-}
 
 function photoTime(photo: Photo): number {
   return new Date(photo.taken_at ?? photo.created_at).getTime();
@@ -66,6 +59,7 @@ export default function AlbumDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [zipProgress, setZipProgress] = useState<{ done: number; total: number } | null>(null);
   const [editingAlbum, setEditingAlbum] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function loadAlbum() {
@@ -379,6 +373,9 @@ export default function AlbumDetailPage() {
             <button className="btn" type="button" onClick={() => setEditingAlbum(true)}>
               Editar
             </button>
+            <button className="btn" type="button" onClick={() => setSharing(true)}>
+              {album.share_token ? 'Link ativo' : 'Compartilhar'}
+            </button>
             {photos.length > 0 && (
               <button className="btn" type="button" onClick={toggleSelecting}>
                 {selecting ? 'Cancelar' : 'Selecionar'}
@@ -521,6 +518,15 @@ export default function AlbumDetailPage() {
             onSaveCaption={handleSaveCaption}
             onSetCover={handleSetCover}
             coverPhotoId={album.cover_photo_id}
+          />
+        )}
+
+        {sharing && (
+          <ShareDialog
+            albumId={album.id}
+            token={album.share_token}
+            onClose={() => setSharing(false)}
+            onChange={(token) => setAlbum((current) => (current ? { ...current, share_token: token } : current))}
           />
         )}
 

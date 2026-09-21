@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import Header from '@/components/Header';
+import { formatMonthYear } from '@/lib/format';
 
 type Album = {
   id: number;
@@ -13,14 +14,6 @@ type Album = {
   photo_count: number;
   event_date: string | null;
 };
-
-function formatMonthYear(value: string): string {
-  return new Date(`${value}T00:00:00Z`).toLocaleDateString('pt-BR', {
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
-}
 
 export default function AlbumsPage() {
   const [albums, setAlbums] = useState<Album[]>([]);
