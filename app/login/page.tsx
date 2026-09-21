@@ -23,7 +23,11 @@ export default function LoginPage() {
       });
 
       if (!response.ok) {
-        setError('Senha incorreta. Tente novamente.');
+        setError(
+          response.status === 429
+            ? 'Muitas tentativas. Aguarde alguns minutos e tente de novo.'
+            : 'Senha incorreta. Tente novamente.'
+        );
         return;
       }
 

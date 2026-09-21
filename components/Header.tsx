@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import LogoutButton from '@/components/LogoutButton';
 
 export function BrandMark({ size = 24 }: { size?: number }) {
   return (
@@ -12,7 +13,7 @@ export function BrandMark({ size = 24 }: { size?: number }) {
   );
 }
 
-export default function Header() {
+export default function Header({ showLogout = true }: { showLogout?: boolean }) {
   return (
     <header className="site-header">
       <div className="site-header__inner">
@@ -20,6 +21,7 @@ export default function Header() {
           <BrandMark />
           Álbum de Fotos
         </Link>
+        {showLogout && <LogoutButton />}
       </div>
     </header>
   );

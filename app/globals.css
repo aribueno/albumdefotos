@@ -83,6 +83,7 @@ input {
   padding: 0 20px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
 }
 
 .brand {
@@ -181,6 +182,21 @@ input {
 .btn--primary:hover {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
+}
+
+.btn--ghost {
+  min-height: 36px;
+  padding: 0 12px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--slate);
+  font-weight: 500;
+}
+
+.btn--ghost:hover {
+  border-color: transparent;
+  background: #eceff3;
+  color: var(--ink);
 }
 
 .btn--block {
