@@ -11,7 +11,16 @@ type Album = {
   created_at: string;
   cover_url: string | null;
   photo_count: number;
+  event_date: string | null;
 };
+
+function formatMonthYear(value: string): string {
+  return new Date(`${value}T00:00:00Z`).toLocaleDateString('pt-BR', {
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
 
 export default function AlbumsPage() {
   const [albums, setAlbums] = useState<Album[]>([]);
@@ -167,6 +176,7 @@ export default function AlbumsPage() {
                 </Link>
                 <div className="album-card__footer">
                   <span className="album-card__count">
+                    {album.event_date ? `${formatMonthYear(album.event_date)} · ` : ''}
                     {album.photo_count} {album.photo_count === 1 ? 'foto' : 'fotos'}
                   </span>
                   <button

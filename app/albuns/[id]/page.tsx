@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
+import EditAlbumDialog from '@/components/EditAlbumDialog';
 import Header from '@/components/Header';
 import Lightbox from '@/components/Lightbox';
 import { downloadPhoto, downloadZip } from '@/lib/download';
@@ -17,13 +18,27 @@ type Photo = {
   filename: string;
   created_at: string;
   taken_at: string | null;
+  caption: string | null;
 };
 
 type Album = {
   id: number;
   name: string;
   created_at: string;
+  description: string | null;
+  event_date: string | null;
+  cover_photo_id: number | null;
+  share_token: string | null;
 };
+
+function formatEventDate(value: string): string {
+  return new Date(`${value}T00:00:00Z`).toLocaleDateString('pt-BR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
 
 function photoTime(photo: Photo): number {
   return new Date(photo.taken_at ?? photo.created_at).getTime();
@@ -50,6 +65,7 @@ export default function AlbumDetailPage() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [zipProgress, setZipProgress] = useState<{ done: number; total: number } | null>(null);
+  const [editingAlbum, setEditingAlbum] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function loadAlbum() {
@@ -189,6 +205,37 @@ export default function AlbumDetailPage() {
     }
   }
 
+  async function handleSaveCaption(photoId: number, caption: string) {
+    const response = await fetch(`/api/photos/${photoId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ caption }),
+    });
+    if (!response.ok) throw new Error('caption failed');
+    const data = await response.json();
+    setPhotos((current) =>
+      current.map((photo) => (photo.id === photoId ? { ...photo, caption: data.photo.caption } : photo))
+    );
+  }
+
+  async function handleSetCover(photoId: number) {
+    try {
+      const response = await fetch(`/api/albums/${albumId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cover_photo_id: photoId }),
+      });
+      if (!response.ok) {
+        setError('Não foi possível definir a capa. Tente novamente.');
+        return;
+      }
+      const data = await response.json();
+      setAlbum(data.album);
+    } catch {
+      setError('Erro de conexão. Tente novamente.');
+    }
+  }
+
   function toggleSelecting() {
     setSelecting((current) => !current);
     setSelected(new Set());
@@ -323,10 +370,15 @@ export default function AlbumDetailPage() {
           <div>
             <h1 className="page-title">{album.name}</h1>
             <p className="page-sub">
+              {album.event_date ? `${formatEventDate(album.event_date)} · ` : ''}
               {photos.length} {photos.length === 1 ? 'foto' : 'fotos'}
             </p>
+            {album.description && <p className="page-desc">{album.description}</p>}
           </div>
           <div className="actions">
+            <button className="btn" type="button" onClick={() => setEditingAlbum(true)}>
+              Editar
+            </button>
             {photos.length > 0 && (
               <button className="btn" type="button" onClick={toggleSelecting}>
                 {selecting ? 'Cancelar' : 'Selecionar'}
@@ -407,7 +459,9 @@ export default function AlbumDetailPage() {
                       )}
                     </span>
                   ) : (
-                    <button
+                    <>
+                      {photo.id === album.cover_photo_id && <span className="tile__badge">Capa</span>}
+                      <button
                       className="tile__delete"
                       type="button"
                       aria-label={`Excluir ${photo.filename}`}
@@ -415,6 +469,7 @@ export default function AlbumDetailPage() {
                     >
                       Excluir
                     </button>
+                    </>
                   )}
                 </li>
               );
@@ -463,6 +518,20 @@ export default function AlbumDetailPage() {
             onIndexChange={setLightboxIndex}
             onDelete={handleDeletePhoto}
             onDownload={(photo) => downloadPhoto(photo)}
+            onSaveCaption={handleSaveCaption}
+            onSetCover={handleSetCover}
+            coverPhotoId={album.cover_photo_id}
+          />
+        )}
+
+        {editingAlbum && (
+          <EditAlbumDialog
+            album={album}
+            onClose={() => setEditingAlbum(false)}
+            onSaved={(saved) => {
+              setAlbum((current) => (current ? { ...current, ...saved } : current));
+              setEditingAlbum(false);
+            }}
           />
         )}
       </main>

@@ -67,7 +67,7 @@ export async function POST(
       const [photo] = await sql`
         INSERT INTO photos (album_id, blob_url, filename, taken_at)
         VALUES (${albumId}, ${blob.url}, ${file.name}, ${takenAt})
-        RETURNING id, album_id, blob_url, filename, created_at, taken_at
+        RETURNING id, album_id, blob_url, filename, created_at, taken_at, caption
       `;
       uploaded.push(photo);
     } catch (error) {

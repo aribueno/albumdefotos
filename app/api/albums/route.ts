@@ -7,18 +7,23 @@ export async function GET() {
       albums.id,
       albums.name,
       albums.created_at,
-      (
-        SELECT photos.blob_url FROM photos
-        WHERE photos.album_id = albums.id
-        ORDER BY COALESCE(photos.taken_at, photos.created_at) ASC, photos.id ASC
-        LIMIT 1
+      albums.description,
+      to_char(albums.event_date, 'YYYY-MM-DD') AS event_date,
+      COALESCE(
+        (SELECT photos.blob_url FROM photos WHERE photos.id = albums.cover_photo_id),
+        (
+          SELECT photos.blob_url FROM photos
+          WHERE photos.album_id = albums.id
+          ORDER BY COALESCE(photos.taken_at, photos.created_at) ASC, photos.id ASC
+          LIMIT 1
+        )
       ) AS cover_url,
       (
         SELECT COUNT(*)::int FROM photos
         WHERE photos.album_id = albums.id
       ) AS photo_count
     FROM albums
-    ORDER BY albums.created_at DESC
+    ORDER BY COALESCE(albums.event_date, albums.created_at::date) DESC, albums.id DESC
   `;
   return NextResponse.json({ albums });
 }
