@@ -457,6 +457,87 @@ input {
   }
 }
 
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn--danger {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn--danger:hover {
+  border-color: #8f1c12;
+  background: #8f1c12;
+}
+
+.page--selecting {
+  padding-bottom: 120px;
+}
+
+.tile.is-selected::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 3px var(--accent);
+  pointer-events: none;
+}
+
+.tile.is-selected .tile__open img {
+  transform: scale(0.94);
+}
+
+.tile__check {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.35);
+  color: #fff;
+  pointer-events: none;
+}
+
+.tile.is-selected .tile__check {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.selection-bar {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  padding: 10px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow-md);
+  transform: translateX(-50%);
+}
+
+.selection-bar__count {
+  padding: 0 6px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .progress {
   height: 6px;
   margin: -12px 0 24px;
@@ -578,7 +659,7 @@ input {
 }
 
 .lightbox__btn:focus-visible,
-.lightbox__delete:focus-visible {
+.lightbox__action:focus-visible {
   outline-color: #fff;
 }
 
@@ -620,8 +701,13 @@ input {
   font-variant-numeric: tabular-nums;
 }
 
-.lightbox__delete {
+.lightbox__actions {
+  display: flex;
   flex-shrink: 0;
+  gap: 8px;
+}
+
+.lightbox__action {
   min-height: 38px;
   padding: 0 14px;
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -633,7 +719,11 @@ input {
   transition: background-color 0.15s, border-color 0.15s;
 }
 
-.lightbox__delete:hover {
+.lightbox__action:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.lightbox__action--danger:hover {
   border-color: var(--danger);
   background: var(--danger);
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 import { sql } from '@/lib/db';
+import { parseIsoDate, readTakenAt } from '@/lib/exif';
 import { extractImagesFromMsg, isMsgFile } from '@/lib/msg';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -26,11 +27,12 @@ export async function POST(
 
   const uploaded = [];
   const errors: string[] = [];
-  const files: File[] = [];
+  const items: { file: File; takenAt: string | null }[] = [];
+  const takenAtHint = parseIsoDate(formData.get('takenAt'));
 
   for (const file of received) {
     if (!isMsgFile(file)) {
-      files.push(file);
+      items.push({ file, takenAt: takenAtHint });
       continue;
     }
     try {
@@ -38,14 +40,14 @@ export async function POST(
       if (images.length === 0) {
         errors.push(`${file.name}: nenhuma imagem encontrada`);
       }
-      files.push(...images);
+      items.push(...images.map((image) => ({ file: image, takenAt: null })));
     } catch (error) {
       console.error(`Falha ao ler ${file.name}:`, error);
       errors.push(`${file.name}: não foi possível ler o arquivo .msg`);
     }
   }
 
-  for (const file of files) {
+  for (const { file, takenAt: hint } of items) {
     if (!ALLOWED_TYPES.includes(file.type)) {
       errors.push(`${file.name}: tipo de arquivo não suportado`);
       continue;
@@ -56,14 +58,16 @@ export async function POST(
     }
 
     try {
+      const takenAt = hint ?? (file.type === 'image/jpeg' ? await readTakenAt(await file.arrayBuffer()) : null);
+
       const blob = await put(`albums/${albumId}/${Date.now()}-${file.name}`, file, {
         access: 'public',
       });
 
       const [photo] = await sql`
-        INSERT INTO photos (album_id, blob_url, filename)
-        VALUES (${albumId}, ${blob.url}, ${file.name})
-        RETURNING id, album_id, blob_url, filename, created_at
+        INSERT INTO photos (album_id, blob_url, filename, taken_at)
+        VALUES (${albumId}, ${blob.url}, ${file.name}, ${takenAt})
+        RETURNING id, album_id, blob_url, filename, created_at, taken_at
       `;
       uploaded.push(photo);
     } catch (error) {

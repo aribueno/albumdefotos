@@ -10,7 +10,7 @@ export async function GET() {
       (
         SELECT photos.blob_url FROM photos
         WHERE photos.album_id = albums.id
-        ORDER BY photos.created_at ASC
+        ORDER BY COALESCE(photos.taken_at, photos.created_at) ASC, photos.id ASC
         LIMIT 1
       ) AS cover_url,
       (

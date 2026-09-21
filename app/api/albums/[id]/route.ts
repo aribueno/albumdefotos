@@ -20,9 +20,9 @@ export async function GET(
   }
 
   const photos = await sql`
-    SELECT id, album_id, blob_url, filename, created_at
+    SELECT id, album_id, blob_url, filename, created_at, taken_at
     FROM photos WHERE album_id = ${albumId}
-    ORDER BY created_at ASC
+    ORDER BY COALESCE(taken_at, created_at) ASC, id ASC
   `;
 
   return NextResponse.json({ album, photos });

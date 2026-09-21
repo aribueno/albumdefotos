@@ -7,6 +7,7 @@ type Photo = {
   id: number;
   blob_url: string;
   filename: string;
+  taken_at?: string | null;
 };
 
 type LightboxProps = {
@@ -15,9 +16,19 @@ type LightboxProps = {
   onClose: () => void;
   onIndexChange: (index: number) => void;
   onDelete: (photoId: number) => void;
+  onDownload: (photo: Photo) => void;
 };
 
-export default function Lightbox({ photos, index, onClose, onIndexChange, onDelete }: LightboxProps) {
+function formatTakenAt(iso: string): string {
+  return new Date(iso).toLocaleDateString('pt-BR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
+export default function Lightbox({ photos, index, onClose, onIndexChange, onDelete, onDownload }: LightboxProps) {
   const photo = photos[index];
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -103,10 +114,16 @@ export default function Lightbox({ photos, index, onClose, onIndexChange, onDele
       <div className="lightbox__bar" onClick={(e) => e.stopPropagation()}>
         <span className="lightbox__name">
           {photo.filename} · {index + 1} / {photos.length}
+          {photo.taken_at ? ` · ${formatTakenAt(photo.taken_at)}` : ''}
         </span>
-        <button className="lightbox__delete" type="button" onClick={() => onDelete(photo.id)}>
-          Excluir foto
-        </button>
+        <div className="lightbox__actions">
+          <button className="lightbox__action" type="button" onClick={() => onDownload(photo)}>
+            Baixar
+          </button>
+          <button className="lightbox__action lightbox__action--danger" type="button" onClick={() => onDelete(photo.id)}>
+            Excluir foto
+          </button>
+        </div>
       </div>
     </div>
   );

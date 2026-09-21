@@ -6,6 +6,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Lightbox from '@/components/Lightbox';
+import { downloadPhoto, downloadZip } from '@/lib/download';
+import { readTakenAt } from '@/lib/exif';
 import { shrinkImageIfLarge } from '@/lib/shrink-image';
 
 type Photo = {
@@ -14,6 +16,7 @@ type Photo = {
   blob_url: string;
   filename: string;
   created_at: string;
+  taken_at: string | null;
 };
 
 type Album = {
@@ -21,6 +24,14 @@ type Album = {
   name: string;
   created_at: string;
 };
+
+function photoTime(photo: Photo): number {
+  return new Date(photo.taken_at ?? photo.created_at).getTime();
+}
+
+function sortPhotos(list: Photo[]): Photo[] {
+  return [...list].sort((a, b) => photoTime(a) - photoTime(b) || a.id - b.id);
+}
 
 export default function AlbumDetailPage() {
   const params = useParams<{ id: string }>();
@@ -35,6 +46,10 @@ export default function AlbumDetailPage() {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+  const [zipProgress, setZipProgress] = useState<{ done: number; total: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function loadAlbum() {
@@ -108,19 +123,21 @@ export default function AlbumDetailPage() {
     await uploadFiles(Array.from(event.target.files ?? []));
   }
 
-  async function uploadFiles(selected: File[]) {
-    if (selected.length === 0 || uploading) return;
+  async function uploadFiles(selectedFiles: File[]) {
+    if (selectedFiles.length === 0 || uploading) return;
 
     setUploading(true);
     setError(null);
-    setProgress({ done: 0, total: selected.length });
+    setProgress({ done: 0, total: selectedFiles.length });
 
     const errors: string[] = [];
-    for (const [position, original] of selected.entries()) {
+    for (const [position, original] of selectedFiles.entries()) {
       try {
+        const takenAt = original.type === 'image/jpeg' ? await readTakenAt(original) : null;
         const file = await shrinkImageIfLarge(original);
         const formData = new FormData();
         formData.append('files', file);
+        if (takenAt) formData.append('takenAt', takenAt);
 
         const response = await fetch(`/api/albums/${albumId}/photos`, {
           method: 'POST',
@@ -134,7 +151,7 @@ export default function AlbumDetailPage() {
 
         const data = await response.json();
         if (data.uploaded && data.uploaded.length > 0) {
-          setPhotos((current) => [...current, ...data.uploaded]);
+          setPhotos((current) => sortPhotos([...current, ...data.uploaded]));
         }
         if (data.errors && data.errors.length > 0) {
           errors.push(...data.errors);
@@ -142,7 +159,7 @@ export default function AlbumDetailPage() {
       } catch {
         errors.push(`${original.name}: falha ao enviar`);
       } finally {
-        setProgress({ done: position + 1, total: selected.length });
+        setProgress({ done: position + 1, total: selectedFiles.length });
       }
     }
 
@@ -171,6 +188,86 @@ export default function AlbumDetailPage() {
       setError('Erro de conexão. Tente novamente.');
     }
   }
+
+  function toggleSelecting() {
+    setSelecting((current) => !current);
+    setSelected(new Set());
+  }
+
+  function toggleSelected(photoId: number) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(photoId)) next.delete(photoId);
+      else next.add(photoId);
+      return next;
+    });
+  }
+
+  const allSelected = photos.length > 0 && selected.size === photos.length;
+
+  function toggleSelectAll() {
+    setSelected(allSelected ? new Set() : new Set(photos.map((photo) => photo.id)));
+  }
+
+  async function handleDeleteSelected() {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    if (!confirm(`Excluir ${ids.length} ${ids.length === 1 ? 'foto' : 'fotos'}? Essa ação não pode ser desfeita.`)) return;
+
+    setDeleting(true);
+    try {
+      const response = await fetch('/api/photos', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+
+      if (!response.ok) {
+        setError('Não foi possível excluir as fotos. Tente novamente.');
+        return;
+      }
+
+      setError(null);
+      setPhotos((current) => current.filter((photo) => !selected.has(photo.id)));
+      setSelected(new Set());
+      setSelecting(false);
+      loadAlbum();
+    } catch {
+      setError('Erro de conexão. Tente novamente.');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function handleDownload(subset: Photo[]) {
+    if (zipProgress || subset.length === 0) return;
+
+    setError(null);
+    if (subset.length === 1) {
+      await downloadPhoto(subset[0]);
+      return;
+    }
+
+    setZipProgress({ done: 0, total: subset.length });
+    try {
+      const failed = await downloadZip(subset, album?.name ?? 'album', (done, total) =>
+        setZipProgress({ done, total })
+      );
+      if (failed > 0) {
+        setError(
+          failed === 1
+            ? '1 foto não pôde ser incluída no arquivo.'
+            : `${failed} fotos não puderam ser incluídas no arquivo.`
+        );
+      }
+    } catch {
+      setError('Não foi possível criar o arquivo .zip. Tente novamente.');
+    } finally {
+      setZipProgress(null);
+    }
+  }
+
+  const zipLabel = zipProgress ? `Preparando ${zipProgress.done} de ${zipProgress.total}...` : null;
 
   if (loading && !album) {
     return (
@@ -217,7 +314,7 @@ export default function AlbumDetailPage() {
   return (
     <>
       <Header />
-      <main className="page">
+      <main className={`page${selecting ? ' page--selecting' : ''}`}>
         <Link href="/" className="back">
           ← Álbuns
         </Link>
@@ -229,20 +326,32 @@ export default function AlbumDetailPage() {
               {photos.length} {photos.length === 1 ? 'foto' : 'fotos'}
             </p>
           </div>
-          <label className={`btn btn--primary upload${uploading ? ' is-busy' : ''}`}>
-            {uploading && progress
-              ? `Enviando ${Math.min(progress.done + 1, progress.total)} de ${progress.total}...`
-              : 'Adicionar fotos'}
-            <input
-              ref={fileInputRef}
-              className="visually-hidden"
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif,.msg"
-              multiple
-              onChange={handleUpload}
-              disabled={uploading}
-            />
-          </label>
+          <div className="actions">
+            {photos.length > 0 && (
+              <button className="btn" type="button" onClick={toggleSelecting}>
+                {selecting ? 'Cancelar' : 'Selecionar'}
+              </button>
+            )}
+            {photos.length > 0 && !selecting && (
+              <button className="btn" type="button" disabled={!!zipProgress} onClick={() => handleDownload(photos)}>
+                {zipLabel ?? 'Baixar álbum'}
+              </button>
+            )}
+            <label className={`btn btn--primary upload${uploading ? ' is-busy' : ''}`}>
+              {uploading && progress
+                ? `Enviando ${Math.min(progress.done + 1, progress.total)} de ${progress.total}...`
+                : 'Adicionar fotos'}
+              <input
+                ref={fileInputRef}
+                className="visually-hidden"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif,.msg"
+                multiple
+                onChange={handleUpload}
+                disabled={uploading}
+              />
+            </label>
+          </div>
         </div>
 
         {progress && (
@@ -276,27 +385,68 @@ export default function AlbumDetailPage() {
           </div>
         ) : (
           <ul className="tiles">
-            {photos.map((photo, index) => (
-              <li key={photo.id} className="tile">
-                <button
-                  className="tile__open"
-                  type="button"
-                  aria-label={`Abrir ${photo.filename}`}
-                  onClick={() => setLightboxIndex(index)}
-                >
-                  <Image src={photo.blob_url} alt={photo.filename} fill sizes="(max-width: 600px) 50vw, 240px" />
-                </button>
-                <button
-                  className="tile__delete"
-                  type="button"
-                  aria-label={`Excluir ${photo.filename}`}
-                  onClick={() => handleDeletePhoto(photo.id)}
-                >
-                  Excluir
-                </button>
-              </li>
-            ))}
+            {photos.map((photo, index) => {
+              const isSelected = selected.has(photo.id);
+              return (
+                <li key={photo.id} className={`tile${isSelected ? ' is-selected' : ''}`}>
+                  <button
+                    className="tile__open"
+                    type="button"
+                    aria-label={selecting ? `Selecionar ${photo.filename}` : `Abrir ${photo.filename}`}
+                    aria-pressed={selecting ? isSelected : undefined}
+                    onClick={() => (selecting ? toggleSelected(photo.id) : setLightboxIndex(index))}
+                  >
+                    <Image src={photo.blob_url} alt={photo.filename} fill sizes="(max-width: 600px) 50vw, 240px" />
+                  </button>
+                  {selecting ? (
+                    <span className="tile__check" aria-hidden="true">
+                      {isSelected && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                          <path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </span>
+                  ) : (
+                    <button
+                      className="tile__delete"
+                      type="button"
+                      aria-label={`Excluir ${photo.filename}`}
+                      onClick={() => handleDeletePhoto(photo.id)}
+                    >
+                      Excluir
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
+        )}
+
+        {selecting && (
+          <div className="selection-bar" role="region" aria-label="Fotos selecionadas">
+            <span className="selection-bar__count">
+              {selected.size} {selected.size === 1 ? 'selecionada' : 'selecionadas'}
+            </span>
+            <button className="btn btn--quiet" type="button" onClick={toggleSelectAll}>
+              {allSelected ? 'Limpar' : 'Selecionar todas'}
+            </button>
+            <button
+              className="btn"
+              type="button"
+              disabled={selected.size === 0 || !!zipProgress}
+              onClick={() => handleDownload(photos.filter((photo) => selected.has(photo.id)))}
+            >
+              {zipLabel ?? 'Baixar'}
+            </button>
+            <button
+              className="btn btn--danger"
+              type="button"
+              disabled={selected.size === 0 || deleting}
+              onClick={handleDeleteSelected}
+            >
+              {deleting ? 'Excluindo...' : 'Excluir'}
+            </button>
+          </div>
         )}
 
         {dragging && (
@@ -312,6 +462,7 @@ export default function AlbumDetailPage() {
             onClose={() => setLightboxIndex(null)}
             onIndexChange={setLightboxIndex}
             onDelete={handleDeletePhoto}
+            onDownload={(photo) => downloadPhoto(photo)}
           />
         )}
       </main>
